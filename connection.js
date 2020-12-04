@@ -1,18 +1,22 @@
 ///------------------------------------------------------- Variables : ----------------------------------------------------------------/// 
 
-var mysql = require('mysql');
-console.log('Get connection ...');
-
+const mysql = require('mysql');
+module.exports = dbconnect;
 
 ///------------------------------------------------------- Fonctions : ----------------------------------------------------------------///
- 
-var conn = mysql.createConnection({
-  database: 'Projet',
-  host: "localhost",
-  user: "Geoff",
-  password: "161098jo"
-});
-conn.connect(function(err) {
-    if (err) throw err;
-    console.log("Connected!");
-});
+
+function dbconnect(){
+  const conn = mysql.createConnection({
+      database: 'Projet',
+      host: "localhost",
+      user: "Geoff",
+      password: "161098jo"
+    });
+  conn.connect(function(err) {
+      if (err) throw err;
+      
+    });
+
+    return conn
+}
+
