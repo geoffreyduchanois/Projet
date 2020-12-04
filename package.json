@@ -1,0 +1,23 @@
+{
+  "name": "projet",
+  "version": "1.0.0",
+  "description": "Création d'une api rest avec express.js  traitement du serveur avec node.js  minio pour le stockage des fichiers  MySql pour la bbd.",
+  "main": "crud.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geoffreyduchanois/Projet.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/geoffreyduchanois/Projet/issues"
+  },
+  "homepage": "https://github.com/geoffreyduchanois/Projet#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
