@@ -3,6 +3,7 @@ const app = express();
 const mysql = require('mysql');
 const sql = require('./connection.js')
 const bodyParser= require('body-parser');
+const fs = require('fs');
 
 
 // création serveur
@@ -36,7 +37,7 @@ app.get(`/files/get`, (req , res)=> {
 app.get(`/files/get/:id`, (req, res) => {
     const id =  [req.params.id];
     var donne = []
-    sql().query('SELECT * FROM Refs WHERE `id_reference`='+id, (err, docs, field) => {
+    sql().query('SELECT * FROM Refs WHERE `id_reference`='+id, (err, docs) => {
         if (err) throw err;
         donne.push(docs[0].id_reference, docs[0].name, docs[0].Type);
         res.json({
@@ -48,8 +49,11 @@ app.get(`/files/get/:id`, (req, res) => {
 // POST 
 app.post(`/files/post`,(req,res)=>{
     const data = req.body;
-    sql().query('INSERT INTO`Refs`(`id_reference`, `name`, `Type`) VALUES(' + data.id_reference+',\''+ data.name + '\',\'' + data.Type + '\');', (err, Refs, field) => {
+    sql().query('INSERT INTO`Refs`(`id_reference`, `name`, `Type`) VALUES(' + data.id_reference+',\''+ data.name + '\',\'' + data.Type + '\');', (err) => {
         if (err) throw err;
+        fs.writeFile(data.name + data.Type,'' ,function (err) {
+            if (err) throw err;
+        });
         res.json({
             truc: data.name +' a été crée'
         })
@@ -61,7 +65,15 @@ app.post(`/files/post`,(req,res)=>{
 app.put(`/files/put/:id`, (req,res) => {
     const id = req.params.id;
     const data = req.body;
-    sql().query('UPDATE`Refs` SET`name` = \'' + data.name + '\', `Type` = \'' + data.Type + '\' WHERE`Refs`.`id_reference` = ' + id + ';', (err, Refs, field) => {
+    
+    sql().query('SELECT * FROM Refs WHERE `id_reference`=' + id, (err, docs) => {
+        if (err) throw err;
+        fs.rename( docs[0].name + docs[0].Type ,data.name + data.Type  , (err) =>{
+            if(err) throw err;
+        })
+    });
+    
+    sql().query('UPDATE`Refs` SET`name` = \'' + data.name + '\', `Type` = \'' + data.Type + '\' WHERE`Refs`.`id_reference` = ' + id + ';', (err) => {
         if (err) throw err;
         res.json({
             truc: 'le fichier a été renomé ' + data.name + ' et son type est devenu ' + data.Type 
@@ -72,7 +84,16 @@ app.put(`/files/put/:id`, (req,res) => {
 // DELETE 
 app.delete(`/files/delete/:id`, (req, res) => {
     const id = req.params.id;
-    sql().query('DELETE FROM`Refs` WHERE`Refs`.`id_reference` = ' + id , (err, Refs, field) => {
+    
+    sql().query('SELECT * FROM Refs WHERE `id_reference`=' + id, (err, docs) => {
+        if (err) throw err;
+        fs.unlink(docs[0].name + docs[0].Type, (err) => {
+            if (err) throw err;
+        })
+    });
+    
+    sql().query('DELETE FROM`Refs` WHERE`Refs`.`id_reference` = ' + id , (err) => {
+        if (err) throw err;
         res.json({
             truc : 'le fichier numéro ' +id + ' a bien été supprimé'
         })
