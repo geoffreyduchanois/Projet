@@ -55,3 +55,17 @@ app.post(`/files/post`,(req,res)=>{
         })
     })
 });
+
+
+// PUT
+app.put(`/files/put/:id`, (req,res) => {
+    const id = req.params.id;
+    const data = req.body;
+    sql().query('UPDATE`Refs` SET`name` = \'' + data.name + '\', `Type` = \'' + data.Type + '\' WHERE`Refs`.`id_reference` = ' + id + ';', (err, Refs, field) => {
+        if (err) throw err;
+        res.json({
+            truc: 'le fichier a été renomé ' + data.name + ' et son type est devenu ' + data.Type 
+        })
+    })
+});
+
