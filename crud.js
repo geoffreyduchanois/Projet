@@ -69,3 +69,12 @@ app.put(`/files/put/:id`, (req,res) => {
     })
 });
 
+// DELETE 
+app.delete(`/files/delete/:id`, (req, res) => {
+    const id = req.params.id;
+    sql().query('DELETE FROM`Refs` WHERE`Refs`.`id_reference` = ' + id , (err, Refs, field) => {
+        res.json({
+            truc : 'le fichier numéro ' +id + ' a bien été supprimé'
+        })
+    }) 
+});
