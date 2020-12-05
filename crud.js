@@ -10,20 +10,30 @@ app.listen(8000 ,()=> console.log('En écoute sur le port 8000'));
 
 
 app.get(`/files/get`, (req , res)=> {
-    console.log("je suis dans le get");
-    var data= []
+    var donne= []
     var result = sql().query('SELECT * FROM Refs;',(err , docs , field)=>{
         if (err) throw err;
-        console.log(docs);
-    })
-    res.json({
-        data: undefined
+        for (let i=0; i< docs.length; i++){
+            donne.push(docs[i].id_reference, docs[i].Ref , docs[i].Type);
+        }
+        
+        res.json({
+            data: donne
+        })
      })
 });
 //  GET un seul fichier 
-// app.get(`/files/get/:id`, (req, res) => {
-
-var data = [];
+app.get(`/files/get/:id`, (req, res) => {
+    const id =  [req.params.id];
+    var donne = []
+    var result = sql().query('SELECT * FROM Refs WHERE `id_reference`='+id, (err, docs, field) => {
+        if (err) throw err;
+        donne.push(docs[0].id_reference, docs[0].Ref, docs[0].Type);
+        res.json({
+            data: donne
+        })
+    })
+});
 
 // var result = sql.query('SELECT * FROM Refs;',data,(err,user,fields));
 // if (err) throw err;
