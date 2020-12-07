@@ -4,16 +4,26 @@ const mysql = require('mysql');
 const sql = require('./connection.js')
 const bodyParser= require('body-parser');
 const fs = require('fs');
+var Minio = require('minio');
+const {bucket, metaData, minioClient } = require('./minio.js');
+const minio = require('./minio.js');
+
 
 
 // création serveur
+
+
 app.listen(8000 ,()=> console.log('En écoute sur le port 8000'));
+
+
 
 // initialistation bodyparser
 
 app.use(bodyParser.urlencoded({ extended: false}));
 
 app.use(bodyParser.json());
+
+
 
 // GET  tout les fichier
 
@@ -24,8 +34,11 @@ app.get(`/files/get`, (req , res)=> {
         if (err) throw err;
         for (let i=0; i< docs.length; i++){
             donne.push(docs[i].id_reference, docs[i].name , docs[i].Type);
+            minioClient.fGetObject(bucket, docs[i].name + docs[i].Type, './fichiers/' + docs[i].name + docs[i].Type, (err) => {
+                if (err) throw err;
+                console.log('le fichier ' + docs[i].name + docs[i].Type + ' a été ajouter au dossier fichiers')
+            })
         }
-        
         res.json({
             data: donne
         })
@@ -40,6 +53,10 @@ app.get(`/files/get/:id`, (req, res) => {
     sql().query('SELECT * FROM Refs WHERE `id_reference`='+id, (err, docs) => {
         if (err) throw err;
         donne.push(docs[0].id_reference, docs[0].name, docs[0].Type);
+        minioClient.fGetObject(bucket, docs[0].name + docs[0].Type, './fichiers/' + docs[0].name + docs[0].Type, (err) => {
+            if (err) throw err;
+            console.log('le fichier ' + docs[0].name + docs[0].Type + ' a été ajouter au dossier fichiers')
+        });
         res.json({
             data: donne
         })
@@ -49,10 +66,15 @@ app.get(`/files/get/:id`, (req, res) => {
 // POST 
 app.post(`/files/post`,(req,res)=>{
     const data = req.body;
+    
     sql().query('INSERT INTO`Refs`(`id_reference`, `name`, `Type`) VALUES(' + data.id_reference+',\''+ data.name + '\',\'' + data.Type + '\');', (err) => {
         if (err) throw err;
-        fs.writeFile(data.name + data.Type,'' ,function (err) {
+        fs.appendFile('./fichiers/' +data.name + data.Type,'' ,function (err) {
             if (err) throw err;
+        });
+        minioClient.fPutObject(bucket, data.name + data.Type, './fichiers/' + data.name + data.Type, metaData, function (err, etag) {
+            if (err) return console.log(err)
+            console.log('File uploaded successfully.')
         });
         res.json({
             truc: data.name +' a été crée'
@@ -66,12 +88,31 @@ app.put(`/files/put/:id`, (req,res) => {
     const id = req.params.id;
     const data = req.body;
     
+
     sql().query('SELECT * FROM Refs WHERE `id_reference`=' + id, (err, docs) => {
-        if (err) throw err;
-        fs.rename( docs[0].name + docs[0].Type ,data.name + data.Type  , (err) =>{
-            if(err) throw err;
-        })
-    });
+        let result = new Promise((resolve, reject) => {
+            if (err) {reject(err);
+            } else {
+                minioClient.fGetObject( bucket, docs[0].name + docs[0].Type, "./fichiers/" + docs[0].name + docs[0].Type, (err) => {
+                        err ? reject(err) : resolve();
+                    });
+            }
+        });
+        result.then(() => {
+            fs.rename( "./fichiers/" + docs[0].name + docs[0].Type, "./fichiers/" + data.name + data.Type, (err) => {
+                        if (err) throw err;
+                    });
+            minioClient.removeObject(bucket, docs[0].name + docs[0].Type, (err)=> {
+                if (err) throw err;
+            });
+            minioClient.fPutObject(bucket, data.name + data.Type, "./fichiers/" + data.name + data.Type, (err) =>{
+                if (err) throw err;
+            });
+            })
+            .catch((err) => {
+                res.json(err);
+            });
+        });
     
     sql().query('UPDATE`Refs` SET`name` = \'' + data.name + '\', `Type` = \'' + data.Type + '\' WHERE`Refs`.`id_reference` = ' + id + ';', (err) => {
         if (err) throw err;
@@ -87,7 +128,10 @@ app.delete(`/files/delete/:id`, (req, res) => {
     
     sql().query('SELECT * FROM Refs WHERE `id_reference`=' + id, (err, docs) => {
         if (err) throw err;
-        fs.unlink(docs[0].name + docs[0].Type, (err) => {
+        fs.unlink('./fichiers/'+docs[0].name + docs[0].Type, (err) => {
+            if (err) throw err;
+        })
+        minioClient.removeObject(bucket, docs[0].name + docs[0].Type, (err) => {
             if (err) throw err;
         })
     });
