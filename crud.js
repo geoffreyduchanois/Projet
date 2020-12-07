@@ -5,7 +5,7 @@ const sql = require('./connection.js')
 const bodyParser= require('body-parser');
 const fs = require('fs');
 var Minio = require('minio');
-const {bucket, metaData, minioClient } = require('./minio.js');
+var {bucket, metaData, minioClient } = require('./minio.js');
 const minio = require('./minio.js');
 
 
@@ -33,7 +33,7 @@ app.get(`/files/get`, (req , res)=> {
     sql().query('SELECT * FROM Refs;',(err , docs , field)=>{
         if (err) throw err;
         for (let i=0; i< docs.length; i++){
-            donne.push(docs[i].id_reference, docs[i].name , docs[i].Type);
+            donne.push(docs[i].id_reference, docs[i].name , docs[i].Type , docs[i].bucket);
             minioClient.fGetObject(bucket, docs[i].name + docs[i].Type, './fichiers/' + docs[i].name + docs[i].Type, (err) => {
                 if (err) throw err;
                 console.log('le fichier ' + docs[i].name + docs[i].Type + ' a été ajouter au dossier fichiers')
@@ -52,7 +52,7 @@ app.get(`/files/get/:id`, (req, res) => {
     var donne = []
     sql().query('SELECT * FROM Refs WHERE `id_reference`='+id, (err, docs) => {
         if (err) throw err;
-        donne.push(docs[0].id_reference, docs[0].name, docs[0].Type);
+        donne.push(docs[0].id_reference, docs[0].name, docs[0].Type , docs[0].bucket);
         minioClient.fGetObject(bucket, docs[0].name + docs[0].Type, './fichiers/' + docs[0].name + docs[0].Type, (err) => {
             if (err) throw err;
             console.log('le fichier ' + docs[0].name + docs[0].Type + ' a été ajouter au dossier fichiers')
@@ -67,7 +67,7 @@ app.get(`/files/get/:id`, (req, res) => {
 app.post(`/files/post`,(req,res)=>{
     const data = req.body;
     
-    sql().query('INSERT INTO`Refs`(`id_reference`, `name`, `Type`) VALUES(' + data.id_reference+',\''+ data.name + '\',\'' + data.Type + '\');', (err) => {
+    sql().query('INSERT INTO`Refs`(`id_reference`, `name`, `Type` , `bucket` ) VALUES(' + data.id_reference+',\''+ data.name + '\',\'' + data.Type + '\',\'' + bucket +'\');', (err) => {
         if (err) throw err;
         fs.appendFile('./fichiers/' +data.name + data.Type,'' ,function (err) {
             if (err) throw err;
@@ -142,4 +142,63 @@ app.delete(`/files/delete/:id`, (req, res) => {
             truc : 'le fichier numéro ' +id + ' a bien été supprimé'
         })
     }) 
+});
+
+
+// Création + changement de bucket
+app.get(`/files/:bucket`, (req, res) => {
+    const buck = req.params.bucket;
+    console.log(bucket);
+    minioClient.makeBucket(buck, 'us-east-1', function (err) {
+        if (err) return console.log('le bucket était déja présent');
+    });
+    res.json({
+        bucket :'le bucket ' + buck + ' a été crée'
+    })
+
+});
+
+
+app.get(`/files/change_bucket/:bucket`, (req, res) => {
+    bucket = req.params.bucket;
+    res.json({
+        bucket : 'Vous travaillez maintenant dans le bucket ' + bucket
+    })
+});
+
+
+// déplacer des fichiers entre les buckets
+
+
+app.put(`/files/deplace/:bucket/:id`, (req,res)=> {
+    const id = req.params.id;
+    const buck= req.params.bucket;
+    sql().query('SELECT * FROM Refs WHERE `id_reference`=' + id, (err, docs) => {
+    let result = new Promise((resolve, reject) => {
+            if (err) {
+                reject(err);
+            } 
+            else {
+                minioClient.fGetObject(bucket, docs[0].name + docs[0].Type, "./fichiers/" + docs[0].name + docs[0].Type, (err) => {
+                    err ? reject(err) : resolve();
+                });
+            }
+        });
+        result.then(() => {
+            minioClient.fPutObject(buck, docs[0].name + docs[0].Type, "./fichiers/" + docs[0].name + docs[0].Type, (err) => {
+                if (err) throw err;
+            });
+        });
+        result.then(() => {
+            minioClient.removeObject(bucket, docs[0].name + docs[0].Type, (err) => {
+                if (err) throw err;
+        });
+    });
+});
+    sql().query('UPDATE`Refs` SET`bucket` = \'' + buck + '\' WHERE`Refs`.`id_reference` = ' + id + ';', (err) => {
+        if (err) throw err;
+        res.json({
+            truc: 'le fichier a été déplacé de ' + bucket + ' a ' + buck
+        })
+    })
 });
