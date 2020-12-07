@@ -74,7 +74,7 @@ app.post(`/files/post`,(req,res)=>{
         });
         minioClient.fPutObject(bucket, data.name + data.Type, './fichiers/' + data.name + data.Type, metaData, function (err, etag) {
             if (err) return console.log(err)
-            console.log('File uploaded successfully.')
+            console.log('Le fichier ' + data.name + data.Type + ' a bien été crée.')
         });
         res.json({
             truc: data.name +' a été crée'
